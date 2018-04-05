@@ -45,14 +45,18 @@
 #define IN2_HIGH() do{P1OUT|=0x20;}while(0)
 #define IN2_LOW() do{P1OUT&=~0x20;}while(0)
 
+#define LIGHTS_ON() do{P1OUT|=0x40;}while(0)
+#define LIGHTS_OFF() do{P1OUT&=~0x40;}while(0)
+
 #define CH2_M (1<<0)
 #define CH3_M (1<<1)
 
-#define THOLD 70
 #define CENTER 1500
 #define MAX 2500
 
 #define PWM_MAX 12000
+
+#define CH3_ON 1300
 
 #define PWR_CNT 8
 #define PWR_DIV PWR_CNT*1023/4.3/3.3
@@ -71,8 +75,8 @@ void board_init(void)
 	BCSCTL1 = CALBC1_1MHZ; // Set DCO
 	DCOCTL = CALDCO_1MHZ;
 
-    // motor outputs
-	P1DIR |= 0x30; P1OUT &= ~0x30;
+    // motor and lights outputs
+	P1DIR |= 0x70; P1OUT &= ~0x70;
 
     // servo signal input
     P1DIR &= ~0x03;
@@ -122,7 +126,7 @@ void adc(void)
 
 void use_ch(uint16_t ch2, uint16_t ch3)
 {
-    if (ch2) {
+    if ((ch2)&&(!pwr_low)) {
         int16_t ich2 = ch2-CENTER;
         if (ich2>0) {
             pwm = ich2<<5;
@@ -152,6 +156,21 @@ void use_ch(uint16_t ch2, uint16_t ch3)
     else {
         IN1_LOW();
         IN2_LOW();
+    }
+
+    if ((ch3)) {//&&(!pwr_low)) {
+        if (ch3>CH3_ON)
+            LIGHTS_ON();
+        else 
+            LIGHTS_OFF();
+    }
+    else {
+        static uint8_t cnt = 0;
+        cnt++;
+        if ((cnt&0x1F)==0)
+            LIGHTS_ON();
+        else
+            LIGHTS_OFF();
     }
 }
 
