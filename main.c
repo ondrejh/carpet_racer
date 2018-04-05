@@ -50,10 +50,9 @@
 
 #define THOLD 70
 #define CENTER 1500
-#define MAX 2200
-#define MIN 800
+#define MAX 2500
 
-#define PWM_MAX 1023
+#define PWM_MAX 12000
 
 #define PWR_CNT 8
 #define PWR_DIV PWR_CNT*1023/4.3/3.3
@@ -61,7 +60,7 @@
 #define PWR_OK (uint16_t)(7.0*PWR_DIV)
 #define PWR_LOW (uint16_t)(6.5*PWR_DIV)
 
-uint16_t pwm;
+int16_t pwm;
 
 bool pwr_low = false;
 
@@ -91,7 +90,6 @@ void board_init(void)
 
 void adc(void)
 {
-    IN2_HIGH();
     ADC10CTL0 |= ENC + ADC10SC;             // Sampling and conversion start
     __bis_SR_register(CPUOFF + GIE);        // LPM0, ADC10_ISR will force exit
     static uint16_t res = 0;
@@ -120,7 +118,41 @@ void adc(void)
         }
         res = 0; cnt = 0;
     }
-    IN2_LOW();
+}
+
+void use_ch(uint16_t ch2, uint16_t ch3)
+{
+    if (ch2) {
+        int16_t ich2 = ch2-CENTER;
+        if (ich2>0) {
+            pwm = ich2<<5;
+            if (pwm>PWM_MAX) pwm=PWM_MAX;
+            if (pwm>MAX) {
+                IN1_HIGH();
+                IN2_LOW();
+            }
+            else {
+                IN1_LOW();
+                IN2_LOW();
+            }
+        }
+        else {
+            pwm = (-ich2)<<5;
+            if (pwm>PWM_MAX) pwm=PWM_MAX;
+            if (pwm>MAX) {
+                IN1_LOW();
+                IN2_HIGH();
+            }
+            else {
+                IN1_LOW();
+                IN2_LOW();
+            }
+        }
+    }
+    else {
+        IN1_LOW();
+        IN2_LOW();
+    }
 }
 
 // main program body
@@ -130,96 +162,33 @@ int main(void)
 
 	board_init(); // init dco and leds
 
-    uint16_t now = 0;
+    uint16_t start=0, ch2=0, ch3=0;
 
     while (1) { // loop forever
 
-        // wait both signals low
-        while(P1IN&CH2_M) ;
+        while (!(P1IN&CH2_M)) {};
 
-        while (!(P1IN&CH2_M)) {
-            if ((TAR-now)>=50000) {
-                adc();
-                now += 50000;
-            }
-        }
-        now = TAR;
+        start = TAR;
+
         adc();
-    }
+        use_ch(ch2, ch3);
+        ch2 = ch3 = 0;
 
-
-    /*while (1) {
-        // wait both servo inputs are low
-        while (P1IN&(CH2_M|CH3_M)) {};
-
-        GREEN_ON();
-
-        uint8_t in_last = 0;
-
-        uint16_t ch2_start = 0;
-        uint16_t ch3_start = 0;
-
-	    while(1) {
-            uint16_t now = TAR;
-            uint8_t in_now = P1IN;
-            
-            uint8_t in_changes = in_now^in_last;
-            uint8_t in_goes_up = in_changes&in_now;
-            uint8_t in_goes_down = in_changes&in_last;
-            
-            // get channel 3 value
-            if (in_goes_up & CH3_M)
-                ch3_start = now;
-            else if (in_goes_down & CH3_M)
-                ch3(now-ch3_start);
-
-            // get channel 2 value
-            if (in_goes_up & CH2_M)
-                ch2_start = now;
-            else if (in_goes_down & CH2_M)
-                ch2(now-ch2_start);
-
-            // do some pwm
-            if (pwm<(now&PWM_MAX))
-                IN1_HIGH();
-            else
-                IN1_LOW();
-
-            // save input for next round
-            in_last = in_now;
-
-            // if no servo signal switch off
-            if ((now-ch3_start) > 50000)
+        while (1) {
+            uint8_t in = P1IN;
+            uint16_t t = TAR;
+            if ((!ch2) && (!(in&CH2_M)))
+                ch2 = t-start;
+            if ((!ch3) && (!(in&CH3_M)))
+                ch3 = t-start;
+            if ((t-start) > MAX)
                 break;
-	    }
+        }
 
-        GREEN_OFF();
-
-        LED_OFF();
+        while ((TAR-start)<pwm) {};
         IN1_LOW();
         IN2_LOW();
-
-        ch2_start = TAR;
-        ch3_start = 0;
-
-        while (!(P1IN&CH3_M)) {
-            uint16_t now = TAR;
-            if ((now-ch2_start)>10000) {
-                ch2_start = now;
-                ch3_start++;
-                if (ch3_start>=200) {
-                    LED_ON();
-                    GREEN_ON();
-                    ch3_start = 0;
-                }
-                else {
-                    GREEN_OFF();
-                    LED_OFF();
-                }
-            }
-        }
-    }*/
-
+    }
 	return -1;
 }
 
@@ -235,39 +204,3 @@ void __attribute__ ((interrupt(ADC10_VECTOR))) ADC10_ISR (void)
 {
   __bic_SR_register_on_exit(CPUOFF);        // Clear CPUOFF bit from 0(SR)
 }
-
-// channel 2
-void ch2(uint16_t v)
-{
-    if ((v<MIN) | (v>MAX)) return;
-
-    uint16_t p;
-
-    if (v < (CENTER - THOLD)) {
-        p = CENTER - v;
-        p <<= 1;
-        pwm = p;
-        IN2_HIGH();
-    }
-    else if (v > (CENTER + THOLD)) {
-        p = v - CENTER;
-        p <<= 1;
-        pwm = PWM_MAX - p;
-        IN2_LOW();
-    }
-    else {
-        pwm = PWM_MAX;
-        IN2_LOW();
-    }
-}
-
-// channel 3
-void ch3(uint16_t v)
-{
-    if ((v<MIN) | (v>MAX)) return;
-    
-    //if (v<CENTER) LED_OFF();
-    //else LED_ON();
-}
-
-
