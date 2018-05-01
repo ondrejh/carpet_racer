@@ -47,12 +47,13 @@
 
 #define LIGHTS_ON() do{P1OUT|=0x40;}while(0)
 #define LIGHTS_OFF() do{P1OUT&=~0x40;}while(0)
+#define LIGHTS_SWAP() do{P1OUT^=0x40;}while(0)
 
 #define CH2_M (1<<0)
 #define CH3_M (1<<1)
 
 #define CENTER 1500
-#define MAX 2500
+#define MAX 4200
 
 #define PWM_MAX 12000
 
@@ -158,7 +159,7 @@ void use_ch(uint16_t ch2, uint16_t ch3)
         IN2_LOW();
     }
 
-    if ((ch3)) {//&&(!pwr_low)) {
+    if ((ch3>800)) {//&&(!pwr_low)) {
         if (ch3>CH3_ON)
             LIGHTS_ON();
         else 
@@ -167,11 +168,12 @@ void use_ch(uint16_t ch2, uint16_t ch3)
     else {
         static uint8_t cnt = 0;
         cnt++;
-        if ((cnt&0x1F)==0)
+        if ((cnt&0x3F)==0)
             LIGHTS_ON();
         else
             LIGHTS_OFF();
     }
+    //LIGHTS_ON();
 }
 
 // main program body
@@ -181,7 +183,7 @@ int main(void)
 
 	board_init(); // init dco and leds
 
-    uint16_t start=0, ch2=0, ch3=0;
+    uint16_t start=0, start_ch2=0, ch2=0, ch3=0;
 
     while (1) { // loop forever
 
@@ -196,10 +198,21 @@ int main(void)
         while (1) {
             uint8_t in = P1IN;
             uint16_t t = TAR;
-            if ((!ch2) && (!(in&CH2_M)))
+            if ((!ch2) && (!(in&CH2_M))) {
                 ch2 = t-start;
-            if ((!ch3) && (!(in&CH3_M)))
-                ch3 = t-start;
+                start_ch2 = t;
+                break;
+            }
+            if ((t-start) > MAX)
+                break;
+        }
+        while (1) {
+            uint8_t in = P1IN;
+            uint16_t t = TAR;
+            if ((!ch3) && (!(in&CH3_M))) {
+                ch3 = t-start_ch2;
+                break;
+            }
             if ((t-start) > MAX)
                 break;
         }
