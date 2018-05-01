@@ -53,7 +53,7 @@
 #define CH3_M (1<<1)
 
 #define CENTER 1500
-#define MAX 4200
+#define MAX 3600
 
 #define PWM_MAX 12000
 
@@ -213,8 +213,10 @@ int main(void)
                 ch3 = t-start_ch2;
                 break;
             }
-            if ((t-start) > MAX)
+            if ((t-start) > MAX) {
+                ch3 = 1750;
                 break;
+            }
         }
 
         while ((TAR-start)<pwm) {};
