@@ -27,10 +27,7 @@ Due to lack of timers it just wait for servo signal to go HIGH, than it measures
 ## How it looks now
 
 ![Guts](/doc/guts.jpg)
-Format: ![Guts]
 
 ![Battery](/doc/battery.jpg)
-Format: ![Battery]
 
 ![Done](/doc/race.jpg)
-Format: ![Ready to race in the carpets]
