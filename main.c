@@ -10,8 +10,8 @@
 //                MSP430G2231
 //             -----------------
 //         /|\|                 |
-//          | |             P2.7|----> GREEN LED (active high)
-//          --|RST          P2.6|----> RED LED (active high)
+//          | |             P2.7|----> GREEN LED (active high) - battery ok
+//          --|RST          P2.6|----> RED LED (active high)   - battery low
 //            |                 |
 //            |             P1.0|<---- CH2 (throtle)
 //            |             P1.1|<---- CH3 (light)
@@ -20,6 +20,8 @@
 //            |                 |
 //            |             P1.4|----> MOTOR IN1
 //            |             P1.5|----> MOTOR IN2
+//            |                 |
+//            |             P1.6|----> LIGHT OUTPUT
 //            |                 |
 //
 //******************************************************************************
